@@ -1,13 +1,14 @@
 package com.seyitkoc.service;
 
+import com.seyitkoc.entity.Auth;
 import com.seyitkoc.dto.auth.LoginRequest;
 import com.seyitkoc.dto.auth.DtoAuth;
 import com.seyitkoc.dto.auth.DtoAuthEmailUpdate;
 import com.seyitkoc.dto.auth.DtoAuthPasswordUpdate;
-import com.seyitkoc.entity.auth.Auth;
+import com.seyitkoc.entity.User;
 
 public interface IAuthService {
-    Auth createNewAuth(String email, String password);
+    Auth createNewAuth(String email, String password, User user);
 
     DtoAuth getAuthInfos(String token);
 

@@ -1,7 +1,7 @@
 package com.seyitkoc.mapper;
 
-import com.seyitkoc.dto.apartment.account.DtoApartmentAccount;
-import com.seyitkoc.entity.apartment.ApartmentAccount;
+import com.seyitkoc.entity.ApartmentAccount;
+import com.seyitkoc.dto.apartmentAccount.DtoApartmentAccount;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,7 +14,7 @@ public class ApartmentAccountMapper {
 
         return DtoApartmentAccount.builder()
                 .id(apartmentAccount.getId())
-                .balance(apartmentAccount.getBalance())
+                .balance(apartmentAccount.getBalanceCalculated())
                 .apartmentId(apartmentAccount.getApartment().getId())
                 .apartmentNumber(apartmentAccount.getApartment().getApartmentNumber())
                 .build();

@@ -1,13 +1,13 @@
 package com.seyitkoc.service.impl;
 
-import com.seyitkoc.entity.polling.Poll;
-import com.seyitkoc.entity.user.User;
-import com.seyitkoc.entity.polling.Vote;
-import com.seyitkoc.repository.PollRepository;
-import com.seyitkoc.repository.VoteRepository;
-import com.seyitkoc.security.JwtTokenService;
-import com.seyitkoc.service.IUserService;
 import com.seyitkoc.service.IVoteService;
+import com.seyitkoc.entity.Poll;
+import com.seyitkoc.entity.User;
+import com.seyitkoc.repository.PollRepository;
+import com.seyitkoc.common.security.JwtTokenService;
+import com.seyitkoc.service.IUserService;
+import com.seyitkoc.entity.Vote;
+import com.seyitkoc.repository.VoteRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 

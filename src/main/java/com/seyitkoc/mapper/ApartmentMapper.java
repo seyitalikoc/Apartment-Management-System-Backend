@@ -1,13 +1,16 @@
 package com.seyitkoc.mapper;
 
+import com.seyitkoc.entity.Apartment;
 import com.seyitkoc.dto.apartment.DtoApartment;
-import com.seyitkoc.entity.apartment.Apartment;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ApartmentMapper {
 
     public DtoApartment toDtoApartment(Apartment apartment){
+        if (apartment == null)
+            return null;
+
         return  DtoApartment.builder()
                 .id(apartment.getId())
                 .apartmentNumber(apartment.getApartmentNumber())

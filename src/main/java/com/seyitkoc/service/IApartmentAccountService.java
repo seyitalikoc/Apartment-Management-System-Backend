@@ -1,15 +1,16 @@
 package com.seyitkoc.service;
 
-import com.seyitkoc.dto.apartment.account.DtoApartmentAccount;
-import com.seyitkoc.entity.apartment.Apartment;
+import com.seyitkoc.dto.apartmentAccount.DtoApartmentAccount;
+import com.seyitkoc.entity.Apartment;
+import com.seyitkoc.dto.apartmentDebts.DtoApartmentDebts;
 import org.springframework.data.domain.Page;
 
-public interface IApartmentAccountService {
-    void createAccount(Apartment apartment);
+import java.util.List;
 
-    void updateBalance(Long accountId);
+public interface IApartmentAccountService {
+    void createAccounts(List<Apartment> apartment);
 
     DtoApartmentAccount getApartmentAccountDetails(String token, Long accountId);
 
-    Page<DtoApartmentAccount> getAllApartmentAccountsByBuildingId(String token, Long buildingId, int page, int size, String sortBy, String sortDirection);
+    Page<DtoApartmentDebts> getApartmentDebtsByAccountIdAndFilter(Long accountId, Boolean isPaid, Boolean isConfirmed, int page, int pageSize, String sortBy, String sortDirection, String token);
 }

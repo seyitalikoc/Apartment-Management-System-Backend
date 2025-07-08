@@ -2,7 +2,7 @@ package com.seyitkoc.mapper;
 
 import com.seyitkoc.dto.transaction.DtoTransaction;
 import com.seyitkoc.dto.transaction.DtoTransactionIU;
-import com.seyitkoc.entity.building.BuildingAccount;
+import com.seyitkoc.entity.BuildingAccount;
 import com.seyitkoc.entity.transaction.Expense;
 import com.seyitkoc.entity.transaction.Income;
 import com.seyitkoc.entity.transaction.Transaction;
@@ -18,27 +18,31 @@ public class TransactionMapper {
         if (dtoTransactionIU == null) {
             return null;
         }
-        Transaction transaction = Transaction.builder()
-                .amount(dtoTransactionIU.getAmount())
-                .description(dtoTransactionIU.getDescription())
-                .buildingAccount(buildingAccount)
-                .transactionDate(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .buildingId(buildingAccount.getBuilding().getId())
-                .build();
-        if (dtoTransactionIU.getType().equals("INCOME")){
-            Income income = (Income) transaction;
-            income.setIncomeType(IncomeType.valueOf(dtoTransactionIU.getSubType().toUpperCase()));
-            return income;
-        }
-        else if (dtoTransactionIU.getType().equals("EXPENSE")){
-            Expense expense = (Expense) transaction;
-            expense.setExpenseType(ExpenseType.valueOf(dtoTransactionIU.getSubType().toUpperCase()));
-            return expense;
-        }
-        else {
+        Transaction transaction;
+        if (dtoTransactionIU.getType().equals("INCOME")) {
+            transaction = Income.builder()
+                    .amount(dtoTransactionIU.getAmount())
+                    .description(dtoTransactionIU.getDescription())
+                    .buildingAccount(buildingAccount)
+                    .transactionDate(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .buildingId(buildingAccount.getBuilding().getId())
+                    .incomeType(IncomeType.valueOf(dtoTransactionIU.getSubType().toUpperCase()))
+                    .build();
+        } else if (dtoTransactionIU.getType().equals("EXPENSE")) {
+            transaction = Expense.builder()
+                    .amount(dtoTransactionIU.getAmount())
+                    .description(dtoTransactionIU.getDescription())
+                    .buildingAccount(buildingAccount)
+                    .transactionDate(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .buildingId(buildingAccount.getBuilding().getId())
+                    .expenseType(ExpenseType.valueOf(dtoTransactionIU.getSubType().toUpperCase()))
+                    .build();
+        } else {
             throw new IllegalArgumentException("Invalid transaction type: " + dtoTransactionIU.getType());
         }
+        return transaction;
     }
 
     public DtoTransaction toDto(Transaction transaction) {

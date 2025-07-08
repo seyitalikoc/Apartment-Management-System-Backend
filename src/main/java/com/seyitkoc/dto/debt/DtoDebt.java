@@ -1,6 +1,6 @@
 package com.seyitkoc.dto.debt;
 
-import com.seyitkoc.dto.apartment.DtoApartmentDebts;
+import com.seyitkoc.dto.apartmentDebts.DtoApartmentDebts;
 import lombok.*;
 
 import java.util.List;

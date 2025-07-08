@@ -1,19 +1,28 @@
 package com.seyitkoc.controller;
 
-import com.seyitkoc.dto.ApiResponse;
-import com.seyitkoc.service.IApartmentDebtService;
+import com.seyitkoc.service.IApartmentDebtsService;
+import com.seyitkoc.dto.apartmentDebts.DtoApartmentDebts;
+import com.seyitkoc.common.dto.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/apartment-debts")
+@RequestMapping("/api/v1/apartmentDebts")
 public class ApartmentDebtsController {
-    private final IApartmentDebtService apartmentDebtService;
+    private final IApartmentDebtsService apartmentDebtService;
 
-    public ApartmentDebtsController(IApartmentDebtService apartmentDebtService) {
+    public ApartmentDebtsController(IApartmentDebtsService apartmentDebtService) {
         this.apartmentDebtService = apartmentDebtService;
     }
 
-    @PatchMapping("/paid")
+    @GetMapping("/{id}")
+    public ApiResponse<DtoApartmentDebts> getApartmentDebtByFilter(
+            @PathVariable(name = "id") Long id,
+            @RequestHeader(value = "Authorization") String token
+    ){
+        return ApiResponse.ok(apartmentDebtService.getApartmentDebtByFilter(id, token));
+    }
+
+    @PatchMapping("/pay")
     public ApiResponse<String> paidDebt(@RequestParam("apartmentDebtId") Long apartmentDebtId, @RequestHeader("Authorization") String token) {
         return ApiResponse.ok(apartmentDebtService.paidDebt(token, apartmentDebtId));
     }

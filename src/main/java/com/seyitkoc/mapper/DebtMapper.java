@@ -1,8 +1,8 @@
 package com.seyitkoc.mapper;
 
+import com.seyitkoc.entity.Debt;
 import com.seyitkoc.dto.debt.DtoDebt;
 import com.seyitkoc.dto.debt.DtoDebtIU;
-import com.seyitkoc.entity.debt.Debt;
 import com.seyitkoc.enums.DebtType;
 import org.springframework.stereotype.Component;
 

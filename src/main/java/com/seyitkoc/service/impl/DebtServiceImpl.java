@@ -1,32 +1,31 @@
 package com.seyitkoc.service.impl;
 
-import com.seyitkoc.dto.debt.DtoDebt;
-import com.seyitkoc.dto.debt.DtoDebtIU;
-import com.seyitkoc.entity.apartment.Apartment;
-import com.seyitkoc.entity.building.Building;
-import com.seyitkoc.entity.debt.ApartmentDebts;
-import com.seyitkoc.entity.debt.Debt;
-import com.seyitkoc.enums.DebtType;
-import com.seyitkoc.exception.ApplicationException;
-import com.seyitkoc.exception.ErrorMessage;
-import com.seyitkoc.exception.MessageType;
+import com.seyitkoc.service.*;
+import com.seyitkoc.service.base.ApartmentDebtsBaseService;
+import com.seyitkoc.mapper.ApartmentDebtsMapper;
+import com.seyitkoc.dto.apartmentDebts.DtoApartmentDebts;
+import com.seyitkoc.entity.Debt;
 import com.seyitkoc.mapper.DebtMapper;
 import com.seyitkoc.repository.DebtRepository;
-import com.seyitkoc.security.JwtTokenService;
-import com.seyitkoc.service.IApartmentDebtService;
-import com.seyitkoc.service.IBuildingService;
-import com.seyitkoc.service.IDebtService;
-import com.seyitkoc.service.IUserService;
-import com.seyitkoc.specification.DebtSpecification;
+import com.seyitkoc.dto.debt.DtoDebt;
+import com.seyitkoc.dto.debt.DtoDebtIU;
+import com.seyitkoc.entity.Apartment;
+import com.seyitkoc.entity.Building;
+import com.seyitkoc.entity.ApartmentDebts;
+import com.seyitkoc.entity.Due;
+import com.seyitkoc.enums.DebtType;
+import com.seyitkoc.common.exception.ApplicationException;
+import com.seyitkoc.common.exception.ErrorMessage;
+import com.seyitkoc.common.exception.MessageType;
+import com.seyitkoc.common.security.JwtTokenService;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,26 +34,70 @@ public class DebtServiceImpl implements IDebtService {
     private final DebtRepository debtRepository;
     private final IUserService userService;
     private final IBuildingService buildingService;
-    private final IApartmentDebtService apartmentDebtService;
+    private final IApartmentDebtsService apartmentDebtService;
     private final JwtTokenService jwtTokenService;
     private final DebtMapper debtMapper;
+    private final IAnnouncementService announcementService;
+    private final IDueService dueService;
+    private final ApartmentDebtsBaseService apartmentDebtsBaseService;
+    private final ApartmentDebtsMapper apartmentDebtsMapper;
 
     public DebtServiceImpl(
             DebtRepository debtRepository,
             JwtTokenService jwtTokenService,
             IUserService userService,
             IBuildingService buildingService,
-            IApartmentDebtService apartmentDebtService,
-            DebtMapper debtMapper
-    ) {
+            IApartmentDebtsService apartmentDebtService,
+            DebtMapper debtMapper, IAnnouncementService announcementService, IDueService dueService,
+            ApartmentDebtsBaseService apartmentDebtsBaseService, ApartmentDebtsMapper apartmentDebtsMapper) {
         this.debtRepository = debtRepository;
         this.jwtTokenService = jwtTokenService;
         this.userService = userService;
         this.buildingService = buildingService;
         this.apartmentDebtService = apartmentDebtService;
         this.debtMapper = debtMapper;
+        this.announcementService = announcementService;
+        this.dueService = dueService;
+        this.apartmentDebtsBaseService = apartmentDebtsBaseService;
+        this.apartmentDebtsMapper = apartmentDebtsMapper;
     }
 
+
+    @Override
+    @Transactional
+    public void createDueDebt(Due due) {
+        Debt debt = debtMapper.dtoToEntity(
+                new DtoDebtIU(
+                        "Due Payment for " + due.getDayOfMonth() + " of the month",
+                        due.getDueAmount(),
+                        DebtType.DUES.name(),
+                        due.getBuilding().getId(),
+                        due.getBuilding().getApartments().stream()
+                                .map(Apartment::getId)
+                                .collect(Collectors.toSet())
+                )
+        );
+
+        Debt savedDebt = debtRepository.save(debt);
+        createAnnouncementForDebt(savedDebt, "Due Payment Created",
+                "A new due payment has been created for the building: " + due.getBuilding().getName() + ".\n" +
+                        "Due Date: " + due.getDayOfMonth() + "\n" +
+                        "Amount: " + due.getDueAmount() + "\n" +
+                        "Type: " + DebtType.DUES.name(),
+                "system", due.getBuilding());
+
+    }
+
+    private void createAnnouncementForDebt(Debt debt, String title, String description, String createdBy, Building building) {
+        announcementService.createAnnouncement(title,
+                description,
+                createdBy,
+                building.getId(),
+                debt.getApartmentDebts().stream()
+                        .map(apartmentDebt -> apartmentDebt.getApartmentAccount().getApartment().getId())
+                        .collect(Collectors.toList()));
+
+    }
 
     @Override
     @Transactional
@@ -66,7 +109,14 @@ public class DebtServiceImpl implements IDebtService {
 
         Debt debt = debtRepository.save(debtMapper.dtoToEntity(dtoDebtIU));
         apartmentDebtService.setDebtToApartments(debt, building, new ArrayList<>(dtoDebtIU.getApartmentIds()));
-        // create an announcement for the debt
+
+        createAnnouncementForDebt(debt, "Debt Created",
+                "A new debt has been created for the building: " + building.getName() + ".\n" +
+                        "Description: " + dtoDebtIU.getDescription() + "\n" +
+                        "Amount: " + dtoDebtIU.getAmount() + "\n" +
+                        "Type: " + dtoDebtIU.getType(),
+                "manager", building);
+
         return debtMapper.entityToDto(debt);
     }
 
@@ -99,60 +149,16 @@ public class DebtServiceImpl implements IDebtService {
             apartmentDebtService.updateApartmentDebts(updatedDebt, buildingService.getBuildingById(updatedDebt.getBuildingId()), new ArrayList<>(dtoDebtIU.getApartmentIds()));
         }
 
+        announcementService.createAnnouncement("Debt Updated",
+                "A debt has been updated for the building: " + buildingService.getBuildingById(updatedDebt.getBuildingId()).getName() + ".\n" +
+                        "Description: " + dtoDebtIU.getDescription() + "\n" +
+                        "Amount: " + dtoDebtIU.getAmount() + "\n" +
+                        "Type: " + dtoDebtIU.getType(),
+                "system",
+                updatedDebt.getBuildingId(),
+                new ArrayList<>(dtoDebtIU.getApartmentIds()));
 
         return debtMapper.entityToDto(updatedDebt);
-    }
-
-    @Override
-    public Page<DtoDebt> getAllDebtsByBuildingId(Long buildingId, String type, String searchingText,
-                                                 Double minAmount, Double maxAmount,
-                                                 LocalDateTime minCreatedAt, LocalDateTime maxCreatedAt,
-                                                 int page, int size, String sortBy, String sortDirection,
-                                                 String token
-    ) {
-        userService.checkUserIsManagerOfBuilding(jwtTokenService.findEmailFromToken(token), buildingId);
-        Specification<Debt> specification = Specification.where(DebtSpecification.hasBuildingId(buildingId))
-                .and(DebtSpecification.hasType(type))
-                .and(DebtSpecification.descriptionHasText(searchingText))
-                .and(DebtSpecification.hasMinAmount(minAmount))
-                .and(DebtSpecification.hasMaxAmount(maxAmount))
-                .and(DebtSpecification.hasMinCreatedAt(minCreatedAt))
-                .and(DebtSpecification.hasMaxCreatedAt(maxCreatedAt));
-
-        return debtRepository.findAll(specification, PageRequest.of(page, size, Sort.by(sortDirection, sortBy)))
-                .map(debtMapper::entityToDto);
-    }
-
-    @Override
-    public Page<DtoDebt> getAllDebtsByApartmentId(Long buildingId, Long apartmentId, String type, String searchingText, Double minAmount, Double maxAmount, LocalDateTime minCreatedAt, LocalDateTime maxCreatedAt, int page, int size, String sortBy, String sortDirection, String token) {
-        try {
-            userService.checkUserIsManagerOfBuilding(jwtTokenService.findEmailFromToken(token.replace("Bearer ", "")), buildingId);
-        } catch (ApplicationException e) {
-            try {
-                userService.checkUserIsOwnerOrTenantOfApartment(jwtTokenService.findEmailFromToken(token.replace("Bearer ", "")), apartmentId);
-            } catch (ApplicationException ex) {
-                throw new ApplicationException(new ErrorMessage(MessageType.ERROR, "You are not authorized to view this debt."));
-            }
-        }
-        Specification<Debt> specification = Specification.where(DebtSpecification.hasBuildingId(buildingId))
-                .and(DebtSpecification.hasApartmentId(apartmentId))
-                .and(DebtSpecification.hasType(type))
-                .and(DebtSpecification.descriptionHasText(searchingText))
-                .and(DebtSpecification.hasMinAmount(minAmount))
-                .and(DebtSpecification.hasMaxAmount(maxAmount))
-                .and(DebtSpecification.hasMinCreatedAt(minCreatedAt))
-                .and(DebtSpecification.hasMaxCreatedAt(maxCreatedAt));
-
-        return debtRepository.findAll(
-                        specification,
-                        PageRequest.of(page, size, Sort.by(sortDirection, sortBy))
-                )
-                .map(debt -> {
-                    debt.getApartmentDebts().removeIf(apartmentDebt ->
-                            !apartmentDebt.getApartmentAccount().getApartment().getId().equals(apartmentId)
-                    );
-                    return debtMapper.entityToDto(debt);
-                });
     }
 
     @Override
@@ -176,4 +182,27 @@ public class DebtServiceImpl implements IDebtService {
         return "Debt deleted successfully.";
     }
 
+    @Override
+    public Page<DtoApartmentDebts> getApartmentDebtsByDebtIdAndFilter(Long debtId, Boolean isPaid, Boolean isConfirm, int page, int pageSize, String sortBy, String sortDirection, String token) {
+        Debt debt = debtRepository.findById(debtId).orElseThrow(() ->
+                new ApplicationException(new ErrorMessage(MessageType.NOT_FOUND, "Debt not found.")));
+        userService.checkUserIsManagerOfBuilding(jwtTokenService
+                .findEmailFromToken(token.replace("Bearer ", "")), debt.getBuildingId());
+
+        return apartmentDebtsBaseService
+                .getApartmentDebtsByDebtId(debtId, isPaid, isConfirm, page, pageSize, sortBy, sortDirection)
+                .map(apartmentDebtsMapper::entityToDto);
+    }
+
+
+    @Scheduled(cron = "0 0 1 * * ?") // Every day at 01:00 AM
+    @Transactional
+    protected void createDuesForAllBuildings() {
+        List<Due> dueList = dueService.findAllByDayOfMonth();
+        if (!dueList.isEmpty()) {
+            for (Due due : dueList) {
+                createDueDebt(due);
+            }
+        }
+    }
 }

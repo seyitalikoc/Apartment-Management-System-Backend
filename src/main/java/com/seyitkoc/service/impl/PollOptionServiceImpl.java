@@ -1,9 +1,10 @@
 package com.seyitkoc.service.impl;
 
-import com.seyitkoc.entity.polling.Poll;
-import com.seyitkoc.entity.polling.PollOption;
-import com.seyitkoc.repository.PollOptionRepository;
 import com.seyitkoc.service.IPollOptionService;
+import com.seyitkoc.entity.Poll;
+import com.seyitkoc.entity.PollOption;
+import com.seyitkoc.repository.PollOptionRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class PollOptionServiceImpl implements IPollOptionService {
     }
 
     @Override
+    @Transactional
     public void createPollOption(Poll poll, List<String> options) {
         List<PollOption> pollOptions = options.stream()
                 .map(option -> {

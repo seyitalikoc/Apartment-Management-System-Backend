@@ -1,9 +1,9 @@
 package com.seyitkoc.mapper;
 
+import com.seyitkoc.entity.Building;
 import com.seyitkoc.dto.building.DtoBuilding;
 import com.seyitkoc.dto.building.DtoBuildingIU;
-import com.seyitkoc.entity.apartment.Apartment;
-import com.seyitkoc.entity.building.Building;
+import com.seyitkoc.entity.Apartment;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ public class BuildingMapper {
         dtoBuilding.setApartmentCount(building.getApartmentCount());
         dtoBuilding.setFloorCount(building.getFloorCount());
         dtoBuilding.setActive(building.isActive());
-        dtoBuilding.setManagerId(building.getManager().getId());
+        dtoBuilding.setManagerId(building.getManager() != null ? building.getManager().getId() : null);
         dtoBuilding.setApartmentIds(building.getApartments().stream()
                 .map(Apartment::getId)
                 .toList());

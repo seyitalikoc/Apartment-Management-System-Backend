@@ -1,7 +1,7 @@
 package com.seyitkoc.mapper;
 
-import com.seyitkoc.dto.apartment.DtoApartmentDebts;
-import com.seyitkoc.entity.debt.ApartmentDebts;
+import com.seyitkoc.entity.ApartmentDebts;
+import com.seyitkoc.dto.apartmentDebts.DtoApartmentDebts;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

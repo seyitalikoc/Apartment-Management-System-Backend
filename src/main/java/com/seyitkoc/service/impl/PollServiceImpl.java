@@ -1,26 +1,31 @@
 package com.seyitkoc.service.impl;
 
-import com.seyitkoc.dto.poll.DtoPoll;
-import com.seyitkoc.dto.poll.DtoPollIU;
-import com.seyitkoc.dto.poll.DtoPollResult;
-import com.seyitkoc.entity.polling.Poll;
-import com.seyitkoc.entity.user.User;
+import com.seyitkoc.common.exception.ApplicationException;
+import com.seyitkoc.common.exception.ErrorMessage;
+import com.seyitkoc.common.exception.MessageType;
+import com.seyitkoc.service.IPollService;
+import com.seyitkoc.entity.Poll;
 import com.seyitkoc.mapper.PollMapper;
 import com.seyitkoc.repository.PollRepository;
-import com.seyitkoc.security.JwtTokenService;
+import com.seyitkoc.dto.poll.DtoPollResult;
+import com.seyitkoc.entity.Apartment;
+import com.seyitkoc.entity.Building;
+import com.seyitkoc.service.base.PollOptionBaseService;
+import com.seyitkoc.mapper.PollOptionMapper;
+import com.seyitkoc.dto.pollOption.DtoPollOption;
+import com.seyitkoc.entity.User;
+import com.seyitkoc.dto.poll.DtoPoll;
+import com.seyitkoc.dto.poll.DtoPollIU;
+import com.seyitkoc.common.security.JwtTokenService;
+import com.seyitkoc.service.IAnnouncementService;
 import com.seyitkoc.service.IPollOptionService;
-import com.seyitkoc.service.IPollService;
 import com.seyitkoc.service.IUserService;
-import com.seyitkoc.specification.PollSpecification;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class PollServiceImpl implements IPollService {
@@ -29,13 +34,19 @@ public class PollServiceImpl implements IPollService {
     private final IUserService userService;
     private final JwtTokenService jwtTokenService;
     private final PollMapper pollMapper;
+    private final IAnnouncementService announcementService;
+    private final PollOptionBaseService pollOptionBaseService;
+    private final PollOptionMapper pollOptionMapper;
 
-    public PollServiceImpl(PollRepository pollRepository, IPollOptionService pollOptionService, IUserService userService, JwtTokenService jwtTokenService, PollMapper pollMapper) {
+    public PollServiceImpl(PollRepository pollRepository, IPollOptionService pollOptionService, IUserService userService, JwtTokenService jwtTokenService, PollMapper pollMapper, IAnnouncementService announcementService, PollOptionBaseService pollOptionBaseService, PollOptionMapper pollOptionMapper) {
         this.pollRepository = pollRepository;
         this.pollOptionService = pollOptionService;
         this.userService = userService;
         this.jwtTokenService = jwtTokenService;
         this.pollMapper = pollMapper;
+        this.announcementService = announcementService;
+        this.pollOptionBaseService = pollOptionBaseService;
+        this.pollOptionMapper = pollOptionMapper;
     }
 
     @Transactional
@@ -44,17 +55,25 @@ public class PollServiceImpl implements IPollService {
         User user = userService.getUserByEmail(jwtTokenService.findEmailFromToken(token.replace("Bearer ", "")));
 
         userService.checkUserIsManagerOfBuilding(user, dtoPollIU.getBuildingId());
-
+        Building building = user.getManagedBuildings().stream().filter(building1 -> building1.getId().equals(dtoPollIU.getBuildingId())).findFirst().orElseThrow(() -> new RuntimeException("Building not found"));
         Poll poll = new Poll();
-        poll.setBuilding(user.getManagedBuildings().stream().filter(building -> building.getId().equals(dtoPollIU.getBuildingId())).findFirst().orElseThrow(() -> new RuntimeException("Building not found")));
+        poll.setBuilding(building);
         poll.setTitle(dtoPollIU.getTitle());
         poll.setDescription(dtoPollIU.getDescription());
         poll.setActive(true);
         poll.setCreatedAt(LocalDateTime.now());
         poll.setFinishDate(LocalDateTime.now().plusDays(dtoPollIU.getTimeLimit()));
-        poll = pollRepository.save(poll);
-        pollOptionService.createPollOption(poll, dtoPollIU.getOptions());
-        poll = pollRepository.findById(poll.getId()).orElseThrow(() -> new RuntimeException("Poll not found"));
+        Poll savedPoll = pollRepository.save(poll);
+        pollOptionService.createPollOption(savedPoll, dtoPollIU.getOptions());
+
+        announcementService.createAnnouncement("New Poll Created",
+                "A new poll has been created: " + dtoPollIU.getTitle(),
+                "system",
+                building.getId(),
+                building.getApartments().stream().map(Apartment::getId).toList()
+        );
+
+
         return pollMapper.pollToDtoPoll(poll);
     }
 
@@ -67,12 +86,7 @@ public class PollServiceImpl implements IPollService {
     }
 
     @Override
-    public List<DtoPoll> getAllPollsByBuildingId(Long buildingId, String token) {
-        userService.checkUserIsMemberOfBuilding(jwtTokenService.findEmailFromToken(token.replace("Bearer ", "")), buildingId);
-        return pollRepository.findAllByBuildingId(buildingId).stream().map(pollMapper::pollToDtoPoll).collect(Collectors.toList());
-    }
-
-    @Override
+    @Transactional
     public String activatePoll(Long pollId, String token) {
         Poll poll = pollRepository.findById(pollId).orElseThrow(() -> new RuntimeException("Poll not found"));
 
@@ -86,6 +100,7 @@ public class PollServiceImpl implements IPollService {
     }
 
     @Override
+    @Transactional
     public String deactivatePoll(Long pollId, String token) {
         Poll poll = pollRepository.findById(pollId).orElseThrow(() -> new RuntimeException("Poll not found"));
         userService.checkUserIsManagerOfBuilding(jwtTokenService.findEmailFromToken(token.replace("Bearer ", "")), poll.getBuilding().getId());
@@ -97,41 +112,6 @@ public class PollServiceImpl implements IPollService {
         return "Poll deactivated successfully.";
     }
 
-    @Override
-    public Page<DtoPoll> getPollsByFilter(
-            Long buildingId,
-            String isActive,
-            String text,
-            String minCreatedAt,
-            String maxCreatedAt,
-            String minFinishedAt,
-            String maxFinishedAt,
-            Long page,
-            Long pageSize,
-            String token) {
-        userService.checkUserIsMemberOfBuilding(jwtTokenService.findEmailFromToken(token.replace("Bearer ", "")), buildingId);
-        Specification<Poll> spec = Specification.where(PollSpecification.hasBuildingId(buildingId));
-        if (isActive != null) {
-            spec = spec.and(PollSpecification.hasIsActive(Boolean.parseBoolean(isActive)));
-        }
-        if (text != null) {
-            spec = spec.and(PollSpecification.hasTitle("%" + text + "%").or(PollSpecification.hasDescription("%" + text + "%")));
-        }
-        if (minCreatedAt != null) {
-            spec = spec.and(PollSpecification.hasMinCreatedAt(Long.parseLong(minCreatedAt)));
-        }
-        if (maxCreatedAt != null) {
-            spec = spec.and(PollSpecification.hasMaxCreatedAt(Long.parseLong(maxCreatedAt)));
-        }
-        if (minFinishedAt != null) {
-            spec = spec.and(PollSpecification.hasMinFinishedAt(Long.parseLong(minFinishedAt)));
-        }
-        if (maxFinishedAt != null) {
-            spec = spec.and(PollSpecification.hasMaxFinishedAt(Long.parseLong(maxFinishedAt)));
-        }
-        return pollRepository.findAll(spec, PageRequest.of(page == null ? 0 : page.intValue(), pageSize == null ? 0 : pageSize.intValue()))
-                .map(pollMapper::pollToDtoPoll);
-    }
 
     @Override
     public DtoPollResult getPollResultById(Long pollId, String token) {
@@ -142,6 +122,7 @@ public class PollServiceImpl implements IPollService {
     }
 
     @Override
+    @Transactional
     public String updatePoll(Long pollId, DtoPollIU dtoPollIU, String token) {
         Poll poll = pollRepository.findById(pollId).orElseThrow(() -> new RuntimeException("Poll not found"));
 
@@ -161,7 +142,26 @@ public class PollServiceImpl implements IPollService {
         poll.getOptions().removeIf(option ->
                 dtoPollIU.getOptions().stream().noneMatch(text -> text.equals(option.getOptionText()))
         );
-        pollRepository.save(poll);
+        Poll savedPoll = pollRepository.save(poll);
+
+        announcementService.createAnnouncement("Poll Updated",
+                "The poll has been updated: " + dtoPollIU.getTitle(),
+                "system",
+                savedPoll.getBuilding().getId(),
+                savedPoll.getBuilding().getApartments().stream().map(Apartment::getId).toList()
+        );
         return "Poll updated successfully.";
+    }
+
+    @Override
+    public Page<DtoPollOption> getPollOptionsByPollId(
+            Long pollId, int page, int pageSize, String sortBy, String sortDirection, String token) {
+        Poll poll = pollRepository.findById(pollId).orElseThrow(() ->
+                new ApplicationException(new ErrorMessage(MessageType.NOT_FOUND, "Poll not found")));
+        userService.checkUserIsMemberOfBuilding(jwtTokenService
+                .findEmailFromToken(token.replace("Bearer ", "")), poll.getBuilding().getId());
+
+        return pollOptionBaseService.getPollOptionsByPollId(pollId, page, pageSize, sortBy, sortDirection)
+                .map(pollOptionMapper::pollOptionToDtoPollOption);
     }
 }

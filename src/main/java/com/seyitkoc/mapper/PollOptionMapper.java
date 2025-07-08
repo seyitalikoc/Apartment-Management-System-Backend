@@ -1,7 +1,7 @@
 package com.seyitkoc.mapper;
 
-import com.seyitkoc.dto.poll.DtoPollOption;
-import com.seyitkoc.entity.polling.PollOption;
+import com.seyitkoc.entity.PollOption;
+import com.seyitkoc.dto.pollOption.DtoPollOption;
 import org.springframework.stereotype.Component;
 
 @Component

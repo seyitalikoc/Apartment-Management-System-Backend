@@ -1,7 +1,7 @@
 package com.seyitkoc.mapper;
 
+import com.seyitkoc.entity.User;
 import com.seyitkoc.dto.user.DtoUser;
-import com.seyitkoc.entity.user.User;
 import org.springframework.stereotype.Component;
 
 @Component

@@ -1,6 +1,7 @@
 package com.seyitkoc.dto.poll;
 
-import com.seyitkoc.entity.polling.Vote;
+import com.seyitkoc.dto.pollOption.DtoPollOption;
+import com.seyitkoc.entity.Vote;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

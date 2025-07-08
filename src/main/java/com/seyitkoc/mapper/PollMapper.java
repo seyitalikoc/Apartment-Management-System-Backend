@@ -1,9 +1,9 @@
 package com.seyitkoc.mapper;
 
+import com.seyitkoc.entity.Poll;
 import com.seyitkoc.dto.poll.DtoPoll;
 import com.seyitkoc.dto.poll.DtoPollResult;
 import com.seyitkoc.dto.poll.DtoPollResultItem;
-import com.seyitkoc.entity.polling.Poll;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

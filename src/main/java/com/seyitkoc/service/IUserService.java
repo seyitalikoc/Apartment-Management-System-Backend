@@ -1,9 +1,12 @@
 package com.seyitkoc.service;
 
+import com.seyitkoc.dto.apartment.DtoApartment;
+import com.seyitkoc.dto.building.DtoBuilding;
+import com.seyitkoc.entity.User;
 import com.seyitkoc.dto.user.DtoUser;
 import com.seyitkoc.dto.user.DtoUserCreate;
 import com.seyitkoc.dto.user.DtoUserUpdate;
-import com.seyitkoc.entity.user.User;
+import org.springframework.data.domain.Page;
 
 public interface IUserService {
     String createNewUser(DtoUserCreate dtoUserCreate);
@@ -27,4 +30,10 @@ public interface IUserService {
     void checkUserIsOwnerOrTenantOfApartment(String email, Long apartmentId);
 
     void checkUserIsOwnerOfApartment(String email, Long apartmentId);
+
+    Page<DtoBuilding> getBuildingsByUser(String token, int page, int size, String sortBy, String sortDirection);
+
+    Page<DtoApartment> getOwnerApartmentsByUser(String token, int page, int size, String sortBy, String sortDirection);
+
+    DtoApartment getRentedApartmentByUser(String token);
 }

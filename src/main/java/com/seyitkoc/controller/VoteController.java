@@ -1,11 +1,11 @@
 package com.seyitkoc.controller;
 
-import com.seyitkoc.entity.polling.Vote;
 import com.seyitkoc.service.IVoteService;
+import com.seyitkoc.entity.Vote;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("api/vote")
+@RequestMapping("api/v1/vote")
 public class VoteController {
     private final IVoteService voteService;
 
@@ -13,7 +13,7 @@ public class VoteController {
         this.voteService = voteService;
     }
 
-    @PostMapping("/vote")
+    @PostMapping
     public Vote vote(
             @RequestHeader("authorization") String token,
             @RequestParam(name = "pollId") Long pollId,

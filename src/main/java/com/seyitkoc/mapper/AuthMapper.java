@@ -1,7 +1,7 @@
 package com.seyitkoc.mapper;
 
+import com.seyitkoc.entity.Auth;
 import com.seyitkoc.dto.auth.DtoAuth;
-import com.seyitkoc.entity.auth.Auth;
 import org.springframework.stereotype.Component;
 
 @Component

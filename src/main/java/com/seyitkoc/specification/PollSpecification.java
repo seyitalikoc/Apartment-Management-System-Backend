@@ -1,39 +1,61 @@
 package com.seyitkoc.specification;
 
-import com.seyitkoc.entity.polling.Poll;
+import com.seyitkoc.entity.Poll;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
+@Component
 public class PollSpecification {
 
-    public static Specification<Poll> hasId(Long id) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("id"), id);
-    }
-    public static Specification<Poll> hasBuildingId(Long buildingId) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("building").get("id"), buildingId);
-    }
-    public static Specification<Poll> hasIsActive(Boolean isActive) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("isActive"), isActive);
+    public Specification<Poll> byBuildingId(Long buildingId) {
+        return ((root, query, criteriaBuilder) -> {
+            if (buildingId == null)
+                return criteriaBuilder.isTrue(criteriaBuilder.literal(true));
+
+            return criteriaBuilder.equal(root.get("building").get("id"), buildingId);
+        });
     }
 
-    public static Specification<Poll> hasTitle(String title) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get("title"), title);
-    }
-    public static Specification<Poll> hasDescription(String description) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get("description"), description);
+    public Specification<Poll> byText(String text) {
+        return ((root, query, criteriaBuilder) -> {
+            if (text == null || text.isEmpty())
+                return criteriaBuilder.isTrue(criteriaBuilder.literal(true));
+
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), "%" + text.toLowerCase() + "%"),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + text.toLowerCase() + "%"));
+        });
     }
 
-    public static Specification<Poll> hasMinCreatedAt(Long minCreatedAt) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), minCreatedAt);
-    }
-    public static Specification<Poll> hasMaxCreatedAt(Long maxCreatedAt) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), maxCreatedAt);
+    public Specification<Poll> byMinCreateAt(LocalDateTime minCreateAt) {
+        return ((root, query, criteriaBuilder) -> {
+            if (minCreateAt == null)
+                return criteriaBuilder.isTrue(criteriaBuilder.literal(true));
+
+            return criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), minCreateAt);
+        });
     }
 
-    public static Specification<Poll> hasMinFinishedAt(Long minFinishedAt) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.greaterThanOrEqualTo(root.get("finishedAt"), minFinishedAt);
-    }
-    public static Specification<Poll> hasMaxFinishedAt(Long maxFinishedAt) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.lessThanOrEqualTo(root.get("finishedAt"), maxFinishedAt);
+    public Specification<Poll> byMaxCreateAt(LocalDateTime maxCreateAt) {
+        return ((root, query, criteriaBuilder) -> {
+            if (maxCreateAt == null)
+                return criteriaBuilder.isTrue(criteriaBuilder.literal(true));
+
+            return criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), maxCreateAt);
+        });
     }
 
+    public Specification<Poll> byIsFinished(Boolean isFinished) {
+        return ((root, query, criteriaBuilder) -> {
+            if (isFinished == null)
+                return criteriaBuilder.isTrue(criteriaBuilder.literal(true));
+
+            if (isFinished)
+                return criteriaBuilder.lessThanOrEqualTo(root.get("finishDate"), LocalDateTime.now());
+
+            return criteriaBuilder.greaterThanOrEqualTo(root.get("finishDate"), LocalDateTime.now());
+        });
+    }
 }

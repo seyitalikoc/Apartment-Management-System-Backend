@@ -1,23 +1,30 @@
 package com.seyitkoc.service.impl;
 
-import com.seyitkoc.dto.apartment.DtoApartment;
-import com.seyitkoc.entity.apartment.Apartment;
-import com.seyitkoc.entity.building.Building;
-import com.seyitkoc.exception.ApplicationException;
-import com.seyitkoc.exception.ErrorMessage;
-import com.seyitkoc.exception.MessageType;
+import com.seyitkoc.service.base.AnnouncementBaseService;
+import com.seyitkoc.mapper.AnnouncementMapper;
+import com.seyitkoc.dto.announcement.DtoAnnouncement;
+import com.seyitkoc.entity.Apartment;
 import com.seyitkoc.mapper.ApartmentMapper;
 import com.seyitkoc.repository.ApartmentRepository;
-import com.seyitkoc.security.JwtTokenService;
-import com.seyitkoc.service.IApartmentAccountService;
 import com.seyitkoc.service.IApartmentService;
+import com.seyitkoc.dto.apartment.DtoApartment;
+import com.seyitkoc.mapper.ApartmentAccountMapper;
+import com.seyitkoc.dto.apartmentAccount.DtoApartmentAccount;
+import com.seyitkoc.entity.Building;
+import com.seyitkoc.common.exception.ApplicationException;
+import com.seyitkoc.common.exception.ErrorMessage;
+import com.seyitkoc.common.exception.MessageType;
+import com.seyitkoc.common.security.JwtTokenService;
+import com.seyitkoc.service.IApartmentAccountService;
+import com.seyitkoc.service.base.DebtBaseService;
+import com.seyitkoc.mapper.DebtMapper;
+import com.seyitkoc.dto.debt.DtoDebt;
 import com.seyitkoc.service.IUserService;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,12 +37,23 @@ public class ApartmentServiceImpl implements IApartmentService {
     private final IApartmentAccountService apartmentAccountService;
     private final ApartmentMapper apartmentMapper;
 
-    public ApartmentServiceImpl(JwtTokenService jwtTokenService, IUserService userService, ApartmentRepository apartmentRepository, IApartmentAccountService apartmentAccountService, ApartmentMapper apartmentMapper) {
+    private final AnnouncementBaseService announcementBaseService;
+    private final DebtBaseService debtBaseService;
+    private final AnnouncementMapper announcementMapper;
+    private final ApartmentAccountMapper apartmentAccountMapper;
+    private final DebtMapper debtMapper;
+
+    public ApartmentServiceImpl(JwtTokenService jwtTokenService, IUserService userService, ApartmentRepository apartmentRepository, IApartmentAccountService apartmentAccountService, ApartmentMapper apartmentMapper, AnnouncementBaseService announcementBaseService, DebtBaseService debtBaseService, AnnouncementMapper announcementMapper, ApartmentAccountMapper apartmentAccountMapper, DebtMapper debtMapper) {
         this.jwtTokenService = jwtTokenService;
         this.userService = userService;
         this.apartmentRepository = apartmentRepository;
         this.apartmentAccountService = apartmentAccountService;
         this.apartmentMapper = apartmentMapper;
+        this.announcementBaseService = announcementBaseService;
+        this.debtBaseService = debtBaseService;
+        this.announcementMapper = announcementMapper;
+        this.apartmentAccountMapper = apartmentAccountMapper;
+        this.debtMapper = debtMapper;
     }
 
     @Transactional
@@ -69,19 +87,24 @@ public class ApartmentServiceImpl implements IApartmentService {
             createAccounts(apartmentsForAccountCreation);
         }
     }
-
     private Apartment createApartment(Building building, Long apartmentNumber) {
         Apartment apartment = new Apartment();
         apartment.setApartmentNumber(apartmentNumber);
         apartment.setBuilding(building);
         return apartment;
     }
-
     private void createAccounts(List<Apartment> apartments) {
-        apartments.forEach(apartmentAccountService::createAccount);
+        apartmentAccountService.createAccounts(apartments);
+    }
+
+    @Override
+    public Apartment getApartmentById(Long apartmentId) {
+        return apartmentRepository.findApartmentById(apartmentId)
+                .orElseThrow(() -> new ApplicationException(new ErrorMessage(MessageType.NOT_FOUND, "Apartment not found with id: " + apartmentId)));
     }
 
 
+    // Read Operation
     @Override
     public DtoApartment getApartmentById(String token, Long apartmentId) {
         String email = jwtTokenService.findEmailFromToken(token.replace("Bearer ", ""));
@@ -91,15 +114,51 @@ public class ApartmentServiceImpl implements IApartmentService {
         return apartmentMapper.toDtoApartment(apartmentRepository.findApartmentById(apartmentId).orElseThrow(() -> new RuntimeException("Apartment not found")));
     }
 
-    @Override
-    public Page<DtoApartment> getAllApartmentsByBuildingId(String token, Long buildingId, int page, int size, String sortBy, String sortDirection) {
-        String email = jwtTokenService.findEmailFromToken(token.replace("Bearer ", ""));
 
-        userService.checkUserIsMemberOfBuilding(email, buildingId);
-        return apartmentRepository.findAllByBuildingId(buildingId, PageRequest.of(page, size, Sort.by(sortBy, sortDirection))).map(apartmentMapper::toDtoApartment);
+    // Nested Resources (Sub-resources)
+    @Override
+    public DtoApartmentAccount getAccountByApartmentId(String token, Long apartmentId) {
+        Apartment apartment = getApartmentById(apartmentId);
+        String email = jwtTokenService.findEmailFromToken(token.replace("Bearer ", ""));
+        try {
+            userService.checkUserIsMemberOfBuilding(email, apartment.getBuilding().getId());
+        }catch(ApplicationException e){
+            userService.checkUserIsOwnerOrTenantOfApartment(email, apartmentId);
+        }
+
+        return apartmentAccountMapper.toDto(apartment.getAccount());
     }
 
     @Override
+    public Page<DtoAnnouncement> getAllAnnouncementsByApartmentIdAndFilter(Long apartmentId, String text, LocalDateTime minCreatedAt, LocalDateTime maxCreatedAt, String createdBy, Boolean isRead, int page, int size, String sortBy, String sortDirection, String token) {
+        Apartment apartment = getApartmentById(apartmentId);
+        String email = jwtTokenService.findEmailFromToken(token.replace("Bearer ", ""));
+        try {
+            userService.checkUserIsMemberOfBuilding(email, apartment.getBuilding().getId());
+        }catch(ApplicationException e){
+            userService.checkUserIsOwnerOrTenantOfApartment(email, apartmentId);
+        }
+
+        return announcementBaseService.findAnnouncementsByApartmentIdWithFilters(apartmentId, text,
+                        minCreatedAt, maxCreatedAt, createdBy, isRead, page, size, sortBy, sortDirection)
+                .map(announcementMapper::toDtoAnnouncement);
+    }
+
+    @Override
+    public Page<DtoDebt> getAllDebtsByApartmentIdAndFilter(Long apartmentId, String text, String type, Double minAmount, Double maxAmount, LocalDateTime minCreatedAt, LocalDateTime maxCreatedAt, int page, int size, String sortBy, String sortDirection, String token) {
+        userService.checkUserIsOwnerOrTenantOfApartment(jwtTokenService
+                .findEmailFromToken(token.replace("Bearer ","")), apartmentId);
+
+        return debtBaseService
+                .getAllDebtsByApartmentIdAndFilter(apartmentId, text, type, minAmount, maxAmount,
+                        minCreatedAt, maxCreatedAt, page, size, sortBy, sortDirection)
+                .map(debtMapper::entityToDto);
+    }
+
+
+    // Special Operations
+    @Override
+    @Transactional
     public DtoApartment setApartmentOwner(String token, Long apartmentId, Long userId) {
         String email = jwtTokenService.findEmailFromToken(token.replace("Bearer ", ""));
         Apartment apartment = apartmentRepository.findApartmentById(apartmentId).orElseThrow(() -> new RuntimeException("Apartment not found"));
@@ -116,6 +175,7 @@ public class ApartmentServiceImpl implements IApartmentService {
     }
 
     @Override
+    @Transactional
     public DtoApartment setApartmentTenant(String token, Long apartmentId, Long userId) {
         String email = jwtTokenService.findEmailFromToken(token.replace("Bearer ", ""));
         Apartment apartment = apartmentRepository.findApartmentById(apartmentId).orElseThrow(() -> new RuntimeException("Apartment not found"));
@@ -128,5 +188,4 @@ public class ApartmentServiceImpl implements IApartmentService {
         }
         return apartmentMapper.toDtoApartment(apartmentRepository.save(apartment));
     }
-
 }

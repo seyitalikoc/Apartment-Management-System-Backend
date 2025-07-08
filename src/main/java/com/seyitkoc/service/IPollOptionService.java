@@ -1,6 +1,6 @@
 package com.seyitkoc.service;
 
-import com.seyitkoc.entity.polling.Poll;
+import com.seyitkoc.entity.Poll;
 
 import java.util.List;
 

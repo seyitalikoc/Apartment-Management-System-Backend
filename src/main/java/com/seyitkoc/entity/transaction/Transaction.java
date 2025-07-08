@@ -1,9 +1,10 @@
 package com.seyitkoc.entity.transaction;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.seyitkoc.entity.building.BuildingAccount;
+import com.seyitkoc.entity.BuildingAccount;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-@Builder
+@SuperBuilder
 public abstract class Transaction {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
@@ -36,7 +37,7 @@ public abstract class Transaction {
     @Column(name = "building_id")
     private Long buildingId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "building_account", nullable = false)
     @ToString.Exclude
     @JsonBackReference

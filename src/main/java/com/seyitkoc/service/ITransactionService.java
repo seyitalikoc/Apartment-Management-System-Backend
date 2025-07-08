@@ -2,11 +2,14 @@ package com.seyitkoc.service;
 
 import com.seyitkoc.dto.transaction.DtoTransaction;
 import com.seyitkoc.dto.transaction.DtoTransactionIU;
-import org.springframework.data.domain.Page;
 
 public interface ITransactionService {
 
-    DtoTransaction createTransaction(DtoTransactionIU dtoTransaction, String token);
+    DtoTransaction createTransaction(DtoTransactionIU dtoTransactionIU, String token);
 
-    //Page<DtoTransaction> getTransactions(String token, );
+    DtoTransaction getTransactionById(String token, Long id);
+
+    DtoTransaction updateTransaction(DtoTransactionIU dtoTransaction, String token, Long id);
+
+    void deleteTransaction(String token, Long id);
 }
